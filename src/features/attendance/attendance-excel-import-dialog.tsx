@@ -125,12 +125,12 @@ export function AttendanceExcelImportDialog({ open, onOpenChange, onImported }: 
         setSummary(result.error);
         return;
       }
-      const { imported, skipped, failed } = result.summary;
+      const { imported, updated, failed } = result.summary;
       await onImported();
       handleOpenChange(false);
       toast.success(
         `${imported} record${imported === 1 ? "" : "s"} imported for ${monthLabel} ${selectedYear}` +
-          (skipped ? `. ${skipped} duplicate${skipped === 1 ? "" : "s"} skipped` : "") +
+          (updated ? `. ${updated} updated` : "") +
           (failed ? `. ${failed} failed` : ""),
       );
     } finally {

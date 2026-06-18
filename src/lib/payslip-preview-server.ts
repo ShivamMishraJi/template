@@ -7,17 +7,21 @@ import {
 } from "@/lib/payslip-template-variables";
 import { compilePayslipPdf } from "@/lib/payslip-typst-server";
 import { payslipDownloadFilename } from "@/lib/payslips-api";
+import { recordPayslipDownloadToDb } from "@/lib/payslip-downloads-db-server";
+import type { PayslipDownloadSource } from "@/lib/payslip-downloads-schema";
 import { NextResponse } from "next/server";
 
-function payslipContentDisposition(filename: string): string {
+function payslipContentDisposition(filename: string, attachment: boolean): string {
   const encoded = encodeURIComponent(filename);
-  return `inline; filename="${filename}"; filename*=UTF-8''${encoded}`;
+  const type = attachment ? "attachment" : "inline";
+  return `${type}; filename="${filename}"; filename*=UTF-8''${encoded}`;
 }
 
 export async function buildPayslipPreviewResponse(
   employeeId: string,
   month: number,
   year: number,
+  options?: { download?: boolean; source?: PayslipDownloadSource },
 ): Promise<NextResponse> {
   const employee = await loadPayrollEmployeeByIdFromDb(employeeId);
   if (!employee) {
@@ -35,11 +39,24 @@ export async function buildPayslipPreviewResponse(
   const variables = buildPayslipTemplateVariables(employee, month, year, attendance);
   const pdf = await compilePayslipPdf(variables);
   const filename = payslipDownloadFilename(employee.nameOfEmployee, month, year);
+  const attachment = options?.download === true;
+
+  if (attachment) {
+    await recordPayslipDownloadToDb({
+      employeeId: employee.id,
+      employeeName: employee.nameOfEmployee,
+      agencyIdNo: employee.agencyIdNo,
+      month,
+      year,
+      filename,
+      source: options?.source ?? "button",
+    });
+  }
 
   return new NextResponse(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": payslipContentDisposition(filename),
+      "Content-Disposition": payslipContentDisposition(filename, attachment),
       "Cache-Control": "no-store",
     },
   });
@@ -59,7 +76,15 @@ export async function payslipPreviewGet(request: Request): Promise<NextResponse>
       return NextResponse.json({ error: "Valid month and year are required." }, { status: 400 });
     }
 
-    return await buildPayslipPreviewResponse(employeeId, month, year);
+    const download = searchParams.get("download") === "1";
+    const sourceParam = searchParams.get("source");
+    const source =
+      sourceParam === "pdf_viewer" || sourceParam === "button" ? sourceParam : "button";
+
+    return await buildPayslipPreviewResponse(employeeId, month, year, {
+      download,
+      source: download ? source : undefined,
+    });
   } catch (error) {
     if (isMongoConnectionError(error)) {
       return NextResponse.json({ error: MONGO_UNAVAILABLE }, { status: 503 });

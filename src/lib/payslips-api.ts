@@ -34,6 +34,7 @@ export function payslipPreviewUrl(
   month: number,
   year: number,
   employeeName: string,
+  options?: { download?: boolean; source?: "button" | "pdf_viewer" },
 ): string {
   const filename = payslipDownloadFilename(employeeName, month, year);
   const params = new URLSearchParams({
@@ -41,6 +42,10 @@ export function payslipPreviewUrl(
     month: String(month),
     year: String(year),
   });
+  if (options?.download) {
+    params.set("download", "1");
+    params.set("source", options.source ?? "button");
+  }
   return `/api/payslips/preview/${encodeURIComponent(filename)}?${params.toString()}`;
 }
 

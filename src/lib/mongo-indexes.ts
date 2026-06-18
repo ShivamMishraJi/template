@@ -1,6 +1,7 @@
 import type { Db } from "mongodb";
 import { ATTENDANCE_COLLECTION } from "@/lib/attendance-mongo-constants";
 import { PAYROLL_EMPLOYEES_COLLECTION } from "@/lib/payroll-employees-mongo-constants";
+import { PAYSLIP_DOWNLOADS_COLLECTION } from "@/lib/payslip-downloads-mongo-constants";
 import { WORKSPACE_SETTINGS_COLLECTION } from "@/lib/workspace-settings-mongo-constants";
 
 const caseInsensitiveCollation = { locale: "en", strength: 2 } as const;
@@ -13,6 +14,7 @@ async function ensureIndexesOnDb(db: Db): Promise<void> {
   const attendance = db.collection(ATTENDANCE_COLLECTION);
   const employees = db.collection(PAYROLL_EMPLOYEES_COLLECTION);
   const settings = db.collection(WORKSPACE_SETTINGS_COLLECTION);
+  const payslipDownloads = db.collection(PAYSLIP_DOWNLOADS_COLLECTION);
 
   await Promise.all([
     attendance.createIndex({ month: 1, year: 1, createdAt: -1 }),
@@ -33,6 +35,10 @@ async function ensureIndexesOnDb(db: Db): Promise<void> {
     employees.createIndex({ deletedAt: 1, siteName: 1, createdAt: -1 }),
 
     settings.createIndex({ id: 1 }, { unique: true }),
+
+    payslipDownloads.createIndex({ downloadedAt: -1 }),
+    payslipDownloads.createIndex({ employeeId: 1, downloadedAt: -1 }),
+    payslipDownloads.createIndex({ year: -1, month: -1, downloadedAt: -1 }),
   ]);
 }
 

@@ -86,20 +86,23 @@ export async function loadAttendanceForEmployeeFromDb(
   return records[0] ?? null;
 }
 
-export async function loadAttendanceDuplicateKeysForMonth(
+export async function loadAttendanceByAgencyForMonth(
   month: number,
   year: number,
-): Promise<Array<{ agencyNo: string; name: string }>> {
+): Promise<Map<string, { id: string; agencyNo: string }>> {
   const db = await getDb();
   const docs = await db
     .collection(ATTENDANCE_COLLECTION)
-    .find({ month, year }, { projection: { agencyNo: 1, name: 1, _id: 0 } })
+    .find({ month, year }, { projection: { id: 1, agencyNo: 1, _id: 0 } })
     .toArray();
 
-  return docs.map((d) => ({
-    agencyNo: String(d.agencyNo ?? ""),
-    name: String(d.name ?? ""),
-  }));
+  const byAgency = new Map<string, { id: string; agencyNo: string }>();
+  for (const doc of docs) {
+    const agencyNo = String(doc.agencyNo ?? "").trim();
+    if (!agencyNo) continue;
+    byAgency.set(agencyNo.toLowerCase(), { id: String(doc.id), agencyNo });
+  }
+  return byAgency;
 }
 
 export type AttendancePeriod = {

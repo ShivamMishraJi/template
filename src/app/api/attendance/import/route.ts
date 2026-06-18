@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
 import { isMongoConnectionError, MONGO_UNAVAILABLE } from "@/lib/mongo-api-errors";
 import { attendanceImportRowSchema } from "@/lib/attendance-schema";
-import { loadAttendanceDuplicateKeysForMonth } from "@/lib/attendance-db-server";
+import { loadAttendanceByAgencyForMonth } from "@/lib/attendance-db-server";
 import { ATTENDANCE_COLLECTION } from "@/lib/attendance-mongo-constants";
 import crypto from "crypto";
+import type { AnyBulkWriteOperation } from "mongodb";
+
+type ImportRowStatus = "imported" | "updated" | "failed";
 
 export async function POST(request: Request) {
   try {
@@ -34,14 +37,10 @@ export async function POST(request: Request) {
 
     const db = await getDb();
     const col = db.collection(ATTENDANCE_COLLECTION);
+    const existingByAgency = await loadAttendanceByAgencyForMonth(month, year);
 
-    const existing = await loadAttendanceDuplicateKeysForMonth(month, year);
-    const existingKeys = new Set(
-      existing.map((d) => `${d.agencyNo.trim().toLowerCase()}_${d.name.trim().toLowerCase()}`),
-    );
-
-    const results: Array<{ rowNumber: number; name: string; status: "imported" | "skipped" | "failed"; error?: string }> = [];
-    const toInsert: Array<Record<string, unknown>> = [];
+    const results: Array<{ rowNumber: number; name: string; status: ImportRowStatus; error?: string }> = [];
+    const bulkOps: AnyBulkWriteOperation[] = [];
 
     for (const item of incoming) {
       const rowNumber = typeof item.rowNumber === "number" ? item.rowNumber : 0;
@@ -61,35 +60,50 @@ export async function POST(request: Request) {
         continue;
       }
 
-      const key = `${parsed.data.agencyNo.trim().toLowerCase()}_${parsed.data.name.trim().toLowerCase()}`;
-      if (existingKeys.has(key)) {
-        results.push({ rowNumber, name, status: "skipped", error: `Duplicate: ${parsed.data.agencyNo} - ${parsed.data.name} already exists for this month.` });
-        continue;
-      }
-
-      existingKeys.add(key);
-      const record = {
-        id: crypto.randomUUID(),
-        agencyNo: parsed.data.agencyNo,
+      const agencyNo = parsed.data.agencyNo.trim();
+      const agencyKey = agencyNo.toLowerCase();
+      const attendanceFields = {
+        agencyNo,
         name: parsed.data.name,
         daysWorked: parsed.data.daysWorked,
         weeklyOff: parsed.data.weeklyOff,
         total: parsed.data.total,
-        month,
-        year,
-        createdAt: new Date().toISOString(),
       };
-      toInsert.push(record);
-      results.push({ rowNumber, name, status: "imported" });
+
+      const existing = existingByAgency.get(agencyKey);
+      if (existing) {
+        bulkOps.push({
+          updateOne: {
+            filter: { id: existing.id },
+            update: { $set: attendanceFields },
+          },
+        });
+        results.push({ rowNumber, name, status: "updated" });
+      } else {
+        const id = crypto.randomUUID();
+        bulkOps.push({
+          insertOne: {
+            document: {
+              id,
+              ...attendanceFields,
+              month,
+              year,
+              createdAt: new Date().toISOString(),
+            },
+          },
+        });
+        existingByAgency.set(agencyKey, { id, agencyNo });
+        results.push({ rowNumber, name, status: "imported" });
+      }
     }
 
-    if (toInsert.length > 0) {
-      await col.insertMany(toInsert);
+    if (bulkOps.length > 0) {
+      await col.bulkWrite(bulkOps, { ordered: false });
     }
 
     const summary = {
       imported: results.filter((r) => r.status === "imported").length,
-      skipped: results.filter((r) => r.status === "skipped").length,
+      updated: results.filter((r) => r.status === "updated").length,
       failed: results.filter((r) => r.status === "failed").length,
       results,
     };

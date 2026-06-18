@@ -81,12 +81,12 @@ export async function listAttendancePeriodsForEmployee(
 
 export type AttendanceImportSummary = {
   imported: number;
-  skipped: number;
+  updated: number;
   failed: number;
   results: Array<{
     rowNumber: number;
     name: string;
-    status: "imported" | "skipped" | "failed";
+    status: "imported" | "updated" | "failed";
     error?: string;
   }>;
 };

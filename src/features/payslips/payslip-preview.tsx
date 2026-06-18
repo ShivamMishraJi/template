@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarClock, Download, FileText, Loader2, Search } from "lucide-react";
+import Link from "next/link";
+import { CalendarClock, Download, FileText, History, Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/empty-state";
 import { Input } from "@/components/ui/input";
@@ -60,8 +61,15 @@ export function PayslipPreview() {
   const [loadingPeriods, setLoadingPeriods] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const previewIframeRef = useRef<HTMLIFrameElement>(null);
+  const validateRequestIdRef = useRef(0);
 
   const hasAttendanceFilter = selectedEmployee !== null && attendancePeriods.length > 0;
+
+  const selectedPeriodIsValid = useMemo(() => {
+    if (!hasAttendanceFilter) return false;
+    return attendancePeriods.some((period) => period.month === month && period.year === year);
+  }, [attendancePeriods, hasAttendanceFilter, month, year]);
 
   const yearOptions = useMemo(() => {
     if (hasAttendanceFilter) {
@@ -190,7 +198,9 @@ export function PayslipPreview() {
   }, []);
 
   const validatePreview = useCallback(async () => {
-    if (!selectedEmployee) return;
+    if (!selectedEmployee || !selectedPeriodIsValid) return;
+
+    const requestId = ++validateRequestIdRef.current;
 
     setLoadingPreview(true);
     setPreviewReady(false);
@@ -203,32 +213,58 @@ export function PayslipPreview() {
       selectedEmployee.nameOfEmployee,
     );
 
+    if (requestId !== validateRequestIdRef.current) return;
+
     if (!result.ok) {
       setPreviewError(result.error);
       setPreviewReady(false);
     } else {
       setPreviewReady(true);
+      setPreviewError(null);
     }
     setLoadingPreview(false);
-  }, [selectedEmployee, month, year]);
+  }, [selectedEmployee, selectedPeriodIsValid, month, year]);
 
   useEffect(() => {
-    if (!selectedEmployee) return;
+    if (!selectedEmployee || loadingPeriods || !selectedPeriodIsValid) {
+      validateRequestIdRef.current += 1;
+      setLoadingPreview(false);
+      setPreviewReady(false);
+      if (!loadingPeriods && selectedEmployee && attendancePeriods.length === 0) {
+        setPreviewError(null);
+      }
+      return;
+    }
+
     const id = window.setTimeout(() => {
       void validatePreview();
     }, 300);
-    return () => window.clearTimeout(id);
-  }, [selectedEmployee, month, year, validatePreview]);
+    return () => {
+      window.clearTimeout(id);
+      validateRequestIdRef.current += 1;
+    };
+  }, [
+    selectedEmployee,
+    loadingPeriods,
+    selectedPeriodIsValid,
+    month,
+    year,
+    validatePreview,
+    attendancePeriods.length,
+  ]);
 
   const handleSelectEmployee = (employee: PayrollEmployeeListItem) => {
+    validateRequestIdRef.current += 1;
     setSelectedEmployee(employee);
     setQuery(employee.nameOfEmployee);
     setListOpen(false);
     setPreviewReady(false);
     setPreviewError(null);
+    setLoadingPreview(false);
   };
 
   const handleQueryChange = (value: string) => {
+    validateRequestIdRef.current += 1;
     setQuery(value);
     setSelectedEmployee(null);
     setAttendancePeriods([]);
@@ -239,9 +275,16 @@ export function PayslipPreview() {
   };
 
   const handleDownload = () => {
-    if (!previewUrl || !selectedEmployee) return;
+    if (!selectedEmployee) return;
+    const url = payslipPreviewUrl(
+      selectedEmployee.id,
+      month,
+      year,
+      selectedEmployee.nameOfEmployee,
+      { download: true, source: "button" },
+    );
     const link = document.createElement("a");
-    link.href = previewUrl;
+    link.href = url;
     link.download = payslipDownloadFilename(selectedEmployee.nameOfEmployee, month, year);
     link.click();
   };
@@ -342,16 +385,24 @@ export function PayslipPreview() {
             ))}
           </select>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleDownload}
-          disabled={!previewReady || loadingPreview}
-        >
-          <Download className="mr-2 size-4" />
-          Download
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button type="button" variant="outline" size="sm" asChild>
+            <Link href="/payslips/history">
+              <History className="mr-2 size-4" />
+              History
+            </Link>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleDownload}
+            disabled={!previewReady || loadingPreview}
+          >
+            <Download className="mr-2 size-4" />
+            Download
+          </Button>
+        </div>
       </div>
 
       <div className={cn(employeesPanelBodyClassName, "flex flex-col gap-3 p-0")}>
@@ -359,7 +410,12 @@ export function PayslipPreview() {
           <div className="px-4 py-4 text-sm text-destructive">{loadError}</div>
         ) : null}
 
-        {loadingPreview ? (
+        {loadingPeriods ? (
+          <div className="flex flex-1 items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            Loading attendance periods…
+          </div>
+        ) : loadingPreview ? (
           <div className="flex flex-1 items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
             Generating payslip preview…
@@ -374,6 +430,7 @@ export function PayslipPreview() {
           </div>
         ) : previewReady && previewUrl ? (
           <iframe
+            ref={previewIframeRef}
             key={previewUrl}
             title="Payslip preview"
             src={previewUrl}
