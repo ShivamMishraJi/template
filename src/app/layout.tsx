@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     template: "%s — SecurePayroll",
   },
   description:
-    "Enterprise payroll and HRMS dashboard for attendance, payroll runs, and payslips.",
+    "Enterprise HRMS dashboard for attendance, employees, and payslips.",
 };
 
 export default function RootLayout({

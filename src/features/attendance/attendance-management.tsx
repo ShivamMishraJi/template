@@ -2,19 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarClock, FileSpreadsheet } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { AttendanceExcelImportDialog } from "@/features/attendance/attendance-excel-import-dialog";
 import { createAttendanceColumns } from "@/features/attendance/attendance-table-columns";
+import { employeeNativeSelectClassName } from "@/features/employees/employee-form-styles";
+import { employeesPanelClassName } from "@/features/employees/employees-panel-styles";
 import type { AttendanceRecord } from "@/lib/attendance-schema";
 import { listAttendance } from "@/lib/attendance-api";
+import { cn } from "@/lib/utils";
 
 const MONTHS = [
   { value: 1, label: "January" },
@@ -30,6 +27,9 @@ const MONTHS = [
   { value: 11, label: "November" },
   { value: 12, label: "December" },
 ];
+
+const attendanceTableClassName =
+  "[&_table]:min-w-max [&_thead]:bg-sky-100 [&_th]:whitespace-nowrap [&_th]:border-sky-200/60 [&_th]:px-2 [&_th]:py-2.5 [&_th]:text-sky-900 [&_td]:px-2 [&_td]:py-2 dark:[&_thead]:bg-sky-950 dark:[&_th]:border-sky-800/60 dark:[&_th]:text-sky-100";
 
 function getYearOptions(): number[] {
   const currentYear = new Date().getFullYear();
@@ -63,6 +63,7 @@ export function AttendanceManagement() {
   }, [month, year]);
 
   useEffect(() => {
+    setHydrated(false);
     const id = window.setTimeout(() => {
       void refresh().finally(() => setHydrated(true));
     }, 0);
@@ -73,23 +74,35 @@ export function AttendanceManagement() {
 
   if (!hydrated) {
     return (
-      <div className="mx-auto max-w-7xl space-y-8">
-        <div className="h-8 w-48 animate-pulse rounded-md bg-muted" />
-        <div className="h-64 animate-pulse rounded-lg bg-muted/60" />
+      <div className={employeesPanelClassName}>
+        <div className="flex gap-2 border-b px-4 py-3">
+          <div className="h-9 min-w-0 flex-1 animate-pulse rounded-md bg-muted sm:max-w-sm" />
+          <div className="h-9 w-28 animate-pulse rounded-md bg-muted" />
+          <div className="h-9 w-28 animate-pulse rounded-md bg-muted" />
+        </div>
+        <div className="min-h-0 flex-1 animate-pulse bg-muted/40" />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto flex h-full max-w-7xl flex-col gap-8">
-      <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Attendance</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Upload and manage monthly attendance records.
-          </p>
-        </div>
-        <div className="flex shrink-0 flex-wrap gap-2">
+    <div className={cn(employeesPanelClassName, attendanceTableClassName)}>
+      {loadError ? (
+        <p className="shrink-0 border-b border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {loadError}
+        </p>
+      ) : null}
+
+      <DataTable
+        embedded
+        className="min-h-0 flex-1"
+        columns={columns}
+        data={records}
+        enableGlobalFilter
+        globalFilterPlaceholder="Search by NAME, AGENCY NO…"
+        pageSize={10}
+        pageSizeOptions={[10, 20, 50]}
+        toolbarEnd={
           <Button
             type="button"
             variant="outline"
@@ -99,25 +112,13 @@ export function AttendanceManagement() {
             <FileSpreadsheet className="h-4 w-4" />
             Import Excel
           </Button>
-        </div>
-      </div>
-
-      {loadError ? (
-        <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {loadError}
-        </p>
-      ) : null}
-
-      <Card className="flex min-h-0 flex-1 flex-col">
-        <CardHeader className="shrink-0">
-          <CardTitle>Attendance Records</CardTitle>
-        </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col space-y-4">
-          <div className="flex flex-wrap items-center gap-4">
+        }
+        toolbarExtras={() => (
+          <>
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span className="whitespace-nowrap font-medium">Month</span>
+              <span className="whitespace-nowrap">Month</span>
               <select
-                className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-sm"
+                className={cn(employeeNativeSelectClassName, "w-[140px]")}
                 value={month}
                 onChange={(e) => setMonth(Number(e.target.value))}
               >
@@ -129,9 +130,9 @@ export function AttendanceManagement() {
               </select>
             </label>
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span className="whitespace-nowrap font-medium">Year</span>
+              <span className="whitespace-nowrap">Year</span>
               <select
-                className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-sm"
+                className={cn(employeeNativeSelectClassName, "w-[100px]")}
                 value={year}
                 onChange={(e) => setYear(Number(e.target.value))}
               >
@@ -142,53 +143,39 @@ export function AttendanceManagement() {
                 ))}
               </select>
             </label>
-            <Button type="button" variant="outline" size="sm" onClick={() => void refresh()}>
-              Refresh
-            </Button>
-          </div>
-
-          <div className="styled-scrollbar min-h-0 flex-1 overflow-auto rounded-lg border border-sky-200/70 bg-card shadow-sm [-webkit-overflow-scrolling:touch] dark:border-sky-900/40 [&_table]:min-w-max [&_thead]:bg-sky-100 [&_th]:whitespace-nowrap [&_th]:border-sky-200/60 [&_th]:px-2 [&_th]:py-2.5 [&_td]:px-2 [&_td]:py-2 dark:[&_thead]:bg-sky-950 dark:[&_th]:border-sky-800/60">
-            <DataTable
-              columns={columns}
-              data={records}
-              enableGlobalFilter
-              globalFilterPlaceholder="Search by NAME, AGENCY NO…"
-              pageSize={10}
-              pageSizeOptions={[10, 20, 50]}
-              emptyState={
-                <EmptyState
-                  icon={CalendarClock}
-                  title={
-                    loadError
-                      ? "Could not load attendance"
-                      : records.length === 0
-                        ? "No attendance records"
-                        : "No records match filters"
-                  }
-                  description={
-                    loadError
-                      ? "Fix MongoDB connection (.env MONGODB_URI), then Refresh."
-                      : "Upload an attendance Excel sheet to populate this table."
-                  }
-                  action={
-                    !loadError && records.length === 0 ? (
-                      <Button
-                        type="button"
-                        variant="default"
-                        className="gap-2"
-                        onClick={() => setImportOpen(true)}
-                      >
-                        <FileSpreadsheet className="h-4 w-4" />
-                        Import Excel
-                      </Button>
-                    ) : undefined
-                  }
-                />
-              }
-            />
-          </div>
-        </CardContent>
-      </Card>
+          </>
+        )}
+        emptyState={
+          <EmptyState
+            icon={CalendarClock}
+            title={
+              loadError
+                ? "Could not load attendance"
+                : records.length === 0
+                  ? "No attendance records"
+                  : "No records match filters"
+            }
+            description={
+              loadError
+                ? "Fix MongoDB connection (.env MONGODB_URI), then reload the page."
+                : "Import an attendance Excel sheet to populate this table."
+            }
+            action={
+              !loadError && records.length === 0 ? (
+                <Button
+                  type="button"
+                  variant="default"
+                  className="gap-2"
+                  onClick={() => setImportOpen(true)}
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Import Excel
+                </Button>
+              ) : undefined
+            }
+          />
+        }
+      />
 
       <AttendanceExcelImportDialog
         open={importOpen}

@@ -22,6 +22,8 @@ type DataTableToolbarProps<TData> = {
   globalFilterPlaceholder?: string;
   filterSlot?: React.ReactNode;
   toolbarExtras?: React.ReactNode;
+  toolbarEnd?: React.ReactNode;
+  hideSearch?: boolean;
   className?: string;
 };
 
@@ -33,6 +35,8 @@ export function DataTableToolbar<TData>({
   globalFilterPlaceholder = "Search all columns…",
   filterSlot,
   toolbarExtras,
+  toolbarEnd,
+  hideSearch,
   className,
 }: DataTableToolbarProps<TData>) {
   const isFiltered =
@@ -46,17 +50,17 @@ export function DataTableToolbar<TData>({
   return (
     <div
       className={cn(
-        "flex flex-col gap-4 rounded-lg border border-border/50 bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between",
+        "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
         className,
       )}
     >
-      <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
-        {enableGlobalFilter && (
+      <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
+        {enableGlobalFilter && !hideSearch && (
           <Input
             placeholder={globalFilterPlaceholder}
             value={(table.getState().globalFilter as string) ?? ""}
             onChange={(event) => table.setGlobalFilter(event.target.value)}
-            className="h-9 w-full sm:max-w-xs"
+            className="h-9 w-full sm:max-w-sm"
           />
         )}
         {column && (
@@ -85,7 +89,9 @@ export function DataTableToolbar<TData>({
           </Button>
         )}
       </div>
-      <DropdownMenu>
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        {toolbarEnd}
+        <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="h-9">
             <SlidersHorizontal className="mr-2 h-4 w-4" />
@@ -135,7 +141,8 @@ export function DataTableToolbar<TData>({
             );
           })()}
         </DropdownMenuContent>
-      </DropdownMenu>
+        </DropdownMenu>
+      </div>
     </div>
   );
 }

@@ -2,14 +2,12 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
-import { MoreHorizontal, Pencil, Archive, RotateCcw } from "lucide-react";
+import { MoreHorizontal, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatCurrencyINR } from "@/lib/format-currency";
@@ -48,7 +46,6 @@ function cellValue(employee: PayrollEmployeeListItem, key: MasterEmployeeFieldKe
 }
 
 const MANDATORY_COLUMN_ORDER: MasterEmployeeFieldKey[] = [
-  "sNo",
   "agencyIdNo",
   "nameOfEmployee",
   "designation",
@@ -75,10 +72,7 @@ function getOrderedFields() {
   return ordered;
 }
 
-export function createPayrollEmployeeColumns(handlers: {
-  onArchive: (row: PayrollEmployeeListItem) => void;
-  onRestore: (row: PayrollEmployeeListItem) => void;
-}): ColumnDef<PayrollEmployeeListItem>[] {
+export function createPayrollEmployeeColumns(): ColumnDef<PayrollEmployeeListItem>[] {
   const orderedFields = getOrderedFields();
 
   const dataColumns: ColumnDef<PayrollEmployeeListItem>[] = orderedFields.map(
@@ -166,46 +160,28 @@ export function createPayrollEmployeeColumns(handlers: {
       ),
       cell: ({ row }) => {
         const e = row.original;
-        const archived = Boolean(e.deletedAt);
         return (
-          <div className="flex items-center justify-end gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 gap-1.5 px-2.5"
-              asChild
-            >
-              <Link href={`/employees/${e.id}`}>
-                <Pencil className="h-3.5 w-3.5" />
-                Edit
-              </Link>
-            </Button>
+          <div className="flex items-center justify-end">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
                   <MoreHorizontal className="h-4 w-4" />
-                  <span className="sr-only">More</span>
+                  <span className="sr-only">Open actions</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel>More</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => handlers.onArchive(e)}>
-                  <Archive className="mr-2 h-4 w-4" />
-                  Archive
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuItem asChild>
+                  <Link href={`/employees/${e.id}`}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Edit
+                  </Link>
                 </DropdownMenuItem>
-                {archived ? (
-                  <DropdownMenuItem onClick={() => handlers.onRestore(e)}>
-                    <RotateCcw className="mr-2 h-4 w-4" />
-                    Restore
-                  </DropdownMenuItem>
-                ) : null}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         );
       },
-      meta: { minWidth: 120, sticky: "right" },
+      meta: { minWidth: 56, sticky: "right" },
     },
   ];
 }

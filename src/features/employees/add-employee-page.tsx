@@ -11,6 +11,12 @@ import { Form } from "@/components/ui/form";
 import { EmployeeExcelImportDialog } from "@/features/employees/employee-excel-import-dialog";
 import { EmployeeMasterFormFields } from "@/features/employees/employee-master-form-fields";
 import {
+  employeesPanelBodyClassName,
+  employeesPanelClassName,
+  employeesPanelFooterClassName,
+  employeesPanelHeaderClassName,
+} from "@/features/employees/employees-panel-styles";
+import {
   emptyPayrollEmployeeFormAddValues,
   payrollEmployeeFormAddSchema,
   type PayrollEmployeeFormAddValues,
@@ -45,43 +51,32 @@ export function AddEmployeePage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 pb-12">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <Button variant="ghost" className="w-fit gap-2 px-0 sm:px-4" asChild>
+    <div className={employeesPanelClassName}>
+      <div className={employeesPanelHeaderClassName}>
+        <Button variant="ghost" className="h-9 gap-2 px-2 text-muted-foreground hover:text-foreground" asChild>
           <Link href="/employees">
             <ArrowLeft className="h-4 w-4" />
-            Back to directory
+            Back to employees
           </Link>
         </Button>
         <Button
           type="button"
           variant="outline"
-          className="w-fit gap-2"
+          className="gap-2"
           onClick={() => setImportOpen(true)}
         >
           <FileSpreadsheet className="h-4 w-4" />
-          Import from Excel
+          Import Excel
         </Button>
       </div>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Add employee</h1>
-        <p className="mt-1 text-sm text-muted-foreground md:text-base">
-          Add a single employee using the form below, or use{" "}
-          <button
-            type="button"
-            className="font-medium text-foreground underline-offset-4 hover:underline"
-            onClick={() => setImportOpen(true)}
-          >
-            Import from Excel
-          </button>{" "}
-          to load many rows from your master sheet (e.g. KRC Cinevista Kanjur). After saving, edit
-          anyone from the directory with the Edit button.
-        </p>
-      </div>
+
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <EmployeeMasterFormFields variant="add" control={form.control} form={form} />
-          <div className="flex flex-wrap gap-2 pt-2">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+          <div className={employeesPanelBodyClassName}>
+            <EmployeeMasterFormFields variant="add" control={form.control} form={form} />
+          </div>
+
+          <div className={employeesPanelFooterClassName}>
             <Button type="submit" disabled={submitting}>
               {submitting ? "Saving…" : "Create employee"}
             </Button>

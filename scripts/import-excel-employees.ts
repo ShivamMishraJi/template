@@ -18,23 +18,25 @@ import { createEmployeeWithAutoId } from "../src/lib/payroll-employees-logic";
 import { PAYROLL_EMPLOYEES_COLLECTION } from "../src/lib/payroll-employees-mongo-constants";
 
 function loadEnvLocal() {
-  const path = resolve(process.cwd(), ".env.local");
-  if (!existsSync(path)) return;
-  const text = readFileSync(path, "utf8");
-  for (const line of text.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq <= 0) continue;
-    const key = trimmed.slice(0, eq).trim();
-    let val = trimmed.slice(eq + 1).trim();
-    if (
-      (val.startsWith('"') && val.endsWith('"')) ||
-      (val.startsWith("'") && val.endsWith("'"))
-    ) {
-      val = val.slice(1, -1);
+  for (const name of [".env.local", ".env"]) {
+    const path = resolve(process.cwd(), name);
+    if (!existsSync(path)) continue;
+    const text = readFileSync(path, "utf8");
+    for (const line of text.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eq = trimmed.indexOf("=");
+      if (eq <= 0) continue;
+      const key = trimmed.slice(0, eq).trim();
+      let val = trimmed.slice(eq + 1).trim();
+      if (
+        (val.startsWith('"') && val.endsWith('"')) ||
+        (val.startsWith("'") && val.endsWith("'"))
+      ) {
+        val = val.slice(1, -1);
+      }
+      if (!(key in process.env)) process.env[key] = val;
     }
-    if (!(key in process.env)) process.env[key] = val;
   }
 }
 
@@ -51,7 +53,7 @@ async function main() {
   }
 
   const uri = process.env.MONGODB_URI?.trim() || "mongodb://127.0.0.1:27017";
-  const dbName = process.env.MONGODB_DB_NAME?.trim() || "payslip_app";
+  const dbName = process.env.MONGODB_DB_NAME?.trim() || "template";
 
   const buffer = readFileSync(filePath);
   const parsed = parsePayrollEmployeeWorkbook(buffer.buffer.slice(

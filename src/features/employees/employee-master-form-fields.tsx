@@ -18,6 +18,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  employeeFormDateClassName,
+  employeeFormFieldClassName,
+  employeeFormSectionCardAccentClassName,
+  employeeFormSectionCardClassName,
+  employeeNativeSelectClassName,
+} from "@/features/employees/employee-form-styles";
+import {
   MASTER_DATA_EMPLOYEE_FIELDS,
   labelForMasterField,
   type MasterEmployeeFieldKey,
@@ -27,6 +34,7 @@ import type {
   PayrollEmployeeFormAddValues,
   PayrollEmployeeFormValues,
 } from "@/lib/payroll-employee-schema";
+import { cn } from "@/lib/utils";
 
 const GENDER_OPTIONS: readonly Gender[] = ["male", "female", "other", "prefer_not_to_say"];
 
@@ -86,6 +94,7 @@ function renderMasterField(
             <FormControl>
               <Input
                 placeholder="From Excel AGENCY ID NO — leave blank for auto ID"
+                className={employeeFormFieldClassName}
                 {...field}
                 value={field.value ?? ""}
               />
@@ -107,7 +116,7 @@ function renderMasterField(
           <FormItem className="sm:col-span-2">
             <FormLabel>{label}</FormLabel>
             <FormControl>
-              <Textarea rows={2} className="resize-y text-sm" {...field} />
+              <Textarea rows={2} className={cn("resize-y text-sm", employeeFormFieldClassName)} {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -126,7 +135,7 @@ function renderMasterField(
           <FormItem>
             <FormLabel>{label}</FormLabel>
             <FormControl>
-              <Input type="date" className="text-sm" {...field} />
+              <Input type="date" className={cn("text-sm", employeeFormDateClassName)} {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -146,7 +155,7 @@ function renderMasterField(
             <FormLabel>{label}</FormLabel>
             <FormControl>
               <select
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+                className={employeeNativeSelectClassName}
                 value={field.value}
                 onChange={field.onChange}
                 onBlur={field.onBlur}
@@ -178,7 +187,7 @@ function renderMasterField(
             <FormLabel>{label}</FormLabel>
             <FormControl>
               <select
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+                className={employeeNativeSelectClassName}
                 value={field.value || "Y"}
                 onChange={field.onChange}
                 onBlur={field.onBlur}
@@ -205,7 +214,7 @@ function renderMasterField(
         <FormItem>
           <FormLabel>{label}</FormLabel>
           <FormControl>
-            <Input className="text-sm" {...field} value={field.value ?? ""} />
+            <Input className={cn("text-sm", employeeFormFieldClassName)} {...field} value={field.value ?? ""} />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -224,7 +233,7 @@ export function EmployeeMasterFormFields({ variant, control }: Props) {
 
   return (
     <div className="space-y-8">
-      <Card className="border-sky-200/80 bg-gradient-to-b from-sky-50/80 to-background dark:border-sky-900/50 dark:from-sky-950/30">
+      <Card className={employeeFormSectionCardAccentClassName}>
         <CardHeader>
           <CardTitle className="text-lg">Master Data — Agency Manpower</CardTitle>
           <CardDescription>
@@ -241,7 +250,7 @@ export function EmployeeMasterFormFields({ variant, control }: Props) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className={employeeFormSectionCardClassName}>
         <CardHeader>
           <CardTitle className="text-lg">Payroll (system)</CardTitle>
           <CardDescription>
@@ -276,6 +285,7 @@ export function EmployeeMasterFormFields({ variant, control }: Props) {
                         ref={field.ref}
                         onBlur={field.onBlur}
                         placeholder="0"
+                        className={employeeFormFieldClassName}
                         {...digitAmountInputProps(field.value as number, field.onChange)}
                       />
                     </FormControl>

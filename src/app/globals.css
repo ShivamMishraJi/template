@@ -21,11 +21,11 @@
   --input: oklch(0.9 0.01 264);
   --ring: oklch(0.45 0.15 264);
   --radius: 0.625rem;
-  --sidebar: oklch(0.17 0.03 264);
-  --sidebar-foreground: oklch(0.92 0.02 264);
-  --sidebar-muted: oklch(0.55 0.03 264);
-  --sidebar-accent: oklch(0.24 0.04 264);
-  --sidebar-border: oklch(0.28 0.04 264);
+  --sidebar: oklch(0.98 0.006 264);
+  --sidebar-foreground: oklch(0.21 0.034 264);
+  --sidebar-muted: oklch(0.45 0.03 264);
+  --sidebar-accent: oklch(0.94 0.02 264);
+  --sidebar-border: oklch(0.9 0.01 264);
 }
 
 .dark {
@@ -124,4 +124,10 @@
 }
 .dark .styled-scrollbar::-webkit-scrollbar-thumb:hover {
   background: oklch(0.65 0.03 264 / 0.5);
+}
+
+.dark input[type="date"],
+.dark input[type="datetime-local"],
+.dark input[type="time"] {
+  color-scheme: dark;
 }

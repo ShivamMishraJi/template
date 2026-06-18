@@ -54,7 +54,6 @@ export type MasterEmployeeFieldDef = {
 };
 
 export const MASTER_DATA_EMPLOYEE_FIELDS: MasterEmployeeFieldDef[] = [
-  { key: "sNo", label: "S/NO", formType: "text", tableMinWidth: 52 },
   { key: "stateCity", label: "STATE/CITY", formType: "text", tableMinWidth: 100 },
   { key: "siteName", label: "SITE NAME", formType: "text", tableMinWidth: 180 },
   {

@@ -33,6 +33,6 @@ function getClientPromise(): Promise<MongoClient> {
 
 export async function getDb(): Promise<Db> {
   const client = await getClientPromise();
-  const dbName = process.env.MONGODB_DB_NAME?.trim() || "payslip_app";
+  const dbName = process.env.MONGODB_DB_NAME?.trim() || "template";
   return client.db(dbName);
 }

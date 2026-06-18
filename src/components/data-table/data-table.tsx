@@ -42,8 +42,11 @@ type DataTableProps<TData, TValue> = {
   globalFilterFn?: FilterFn<TData>;
   filterSlot?: ReactNode;
   toolbarExtras?: (table: TanstackTable<TData>) => ReactNode;
+  toolbarEnd?: ReactNode;
+  toolbarClassName?: string;
   emptyState?: ReactNode;
   className?: string;
+  embedded?: boolean;
   initialColumnVisibility?: VisibilityState;
   pageSize?: number;
   pageSizeOptions?: number[];
@@ -60,8 +63,11 @@ export function DataTable<TData, TValue>({
   globalFilterFn,
   filterSlot,
   toolbarExtras,
+  toolbarEnd,
+  toolbarClassName,
   emptyState,
   className,
+  embedded,
   initialColumnVisibility,
   pageSize = 8,
   pageSizeOptions,
@@ -116,7 +122,13 @@ export function DataTable<TData, TValue>({
   });
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div
+      className={cn(
+        "flex min-h-0 flex-1 flex-col",
+        embedded ? "h-full overflow-hidden" : "gap-3",
+        className,
+      )}
+    >
       <DataTableToolbar
         table={table}
         searchKey={searchKey}
@@ -125,8 +137,18 @@ export function DataTable<TData, TValue>({
         globalFilterPlaceholder={globalFilterPlaceholder}
         filterSlot={filterSlot}
         toolbarExtras={toolbarExtras?.(table)}
+        toolbarEnd={toolbarEnd}
+        className={cn(
+          embedded && "shrink-0 border-b bg-muted/30 px-4 py-3",
+          toolbarClassName,
+        )}
       />
-      <div className="rounded-md border border-border bg-card">
+      <div
+        className={cn(
+          "min-h-0 flex-1 overflow-auto bg-card",
+          embedded ? "border-0" : "rounded-md border border-border",
+        )}
+      >
         <Table>
           <TableHeader className="[&_tr]:bg-inherit">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -208,7 +230,12 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <div className="flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between">
+      <div
+        className={cn(
+          "flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
+          embedded && "border-t bg-muted/20 px-4 py-2.5",
+        )}
+      >
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
           <span>{table.getFilteredRowModel().rows.length} row(s)</span>
           {showPaginationInfo && (

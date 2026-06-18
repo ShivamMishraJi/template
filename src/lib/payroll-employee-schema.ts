@@ -357,6 +357,81 @@ function coerceLegacyEmployeeFields(row: Record<string, unknown>): Record<string
   return next;
 }
 
+function toIsoDateString(v: unknown): string {
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (typeof v === "string") return v;
+  return "";
+}
+
+function toIsoDateTimeString(v: unknown): string {
+  if (v instanceof Date) return v.toISOString();
+  if (typeof v === "string") return v;
+  return "";
+}
+
+function toNonNegativeNumber(v: unknown): number {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
+function normalizePayrollEmployeeDocument(row: Record<string, unknown>): Record<string, unknown> {
+  const next: Record<string, unknown> = { ...row };
+
+  for (const key of [
+    "dateOfBirth",
+    "dateOfJoining",
+    "lastWorkingDay",
+    "pccApplicationDate",
+    "pccIssueDate",
+    "policeVerificationValidity",
+  ] as const) {
+    if (key in next) next[key] = toIsoDateString(next[key]);
+  }
+
+  next.createdAt = toIsoDateTimeString(next.createdAt);
+  next.updatedAt = toIsoDateTimeString(next.updatedAt);
+  if (next.deletedAt instanceof Date) {
+    next.deletedAt = next.deletedAt.toISOString();
+  }
+
+  for (const key of [
+    "salaryBasic",
+    "salaryDa",
+    "salaryHra",
+    "salaryConveyance",
+    "salaryEducationAllowance",
+    "salaryLta",
+    "salaryWashingAllowance",
+    "salaryOtherAllowance",
+    "salaryOtRate",
+    "salary",
+  ] as const) {
+    if (key in next) next[key] = toNonNegativeNumber(next[key]);
+  }
+
+  if (!String(next.id ?? "").trim()) {
+    const mongoId = next._id;
+    next.id =
+      mongoId && typeof mongoId === "object" && "toString" in mongoId
+        ? String(mongoId)
+        : `legacy-${String(next.agencyIdNo ?? "employee")}`;
+  }
+  delete next._id;
+
+  if (next.deletedAt === undefined) next.deletedAt = null;
+
+  const createdFallback = String(next.createdAt || new Date().toISOString());
+  if (!String(next.createdAt ?? "").trim()) next.createdAt = createdFallback;
+  if (!String(next.updatedAt ?? "").trim()) next.updatedAt = createdFallback;
+
+  if (!String(next.designation ?? "").trim()) next.designation = "Employee";
+
+  const phone = String(next.phoneNumber ?? "").trim();
+  if (phone.length < 7) next.phoneNumber = "0000000";
+
+  return next;
+}
+
 function migrateLegacySalaryRow(row: Record<string, unknown>): Record<string, unknown> {
   const sum =
     Number(row.salaryBasic ?? 0) +
@@ -377,16 +452,38 @@ function migrateLegacySalaryRow(row: Record<string, unknown>): Record<string, un
   return row;
 }
 
+function finalizePayrollEmployeeSalary(row: Record<string, unknown>): Record<string, unknown> {
+  const components = {
+    salaryBasic: toNonNegativeNumber(row.salaryBasic),
+    salaryDa: toNonNegativeNumber(row.salaryDa),
+    salaryHra: toNonNegativeNumber(row.salaryHra),
+    salaryConveyance: toNonNegativeNumber(row.salaryConveyance),
+    salaryEducationAllowance: toNonNegativeNumber(row.salaryEducationAllowance),
+    salaryLta: toNonNegativeNumber(row.salaryLta),
+    salaryWashingAllowance: toNonNegativeNumber(row.salaryWashingAllowance),
+    salaryOtherAllowance: toNonNegativeNumber(row.salaryOtherAllowance),
+  };
+  const salary = toNonNegativeNumber(row.salary);
+  if (salary > 0) {
+    return { ...row, ...components, salary };
+  }
+  return { ...row, ...components, salary: monthlySalaryComponentSum(components) * 12 };
+}
+
 export function parsePayrollEmployees(raw: unknown): PayrollEmployee[] {
   const arr = Array.isArray(raw) ? raw : [];
   const out: PayrollEmployee[] = [];
   for (const item of arr) {
     if (!item || typeof item !== "object") continue;
-    const merged = migrateLegacySalaryRow(
-      coerceLegacyEmployeeFields({
-        ...payrollEmployeeStorageDefaults,
-        ...(item as Record<string, unknown>),
-      }),
+    const merged = finalizePayrollEmployeeSalary(
+      migrateLegacySalaryRow(
+        normalizePayrollEmployeeDocument(
+          coerceLegacyEmployeeFields({
+            ...payrollEmployeeStorageDefaults,
+            ...(item as Record<string, unknown>),
+          }),
+        ),
+      ),
     );
     const parsed = payrollEmployeeSchema.safeParse(merged);
     if (parsed.success) {
