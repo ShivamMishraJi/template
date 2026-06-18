@@ -1,4 +1,5 @@
 import { Db, MongoClient } from "mongodb";
+import { ensureMongoIndexes } from "@/lib/mongo-indexes";
 
 const options = {
   serverSelectionTimeoutMS: 8_000,
@@ -34,5 +35,7 @@ function getClientPromise(): Promise<MongoClient> {
 export async function getDb(): Promise<Db> {
   const client = await getClientPromise();
   const dbName = process.env.MONGODB_DB_NAME?.trim() || "template";
-  return client.db(dbName);
+  const db = client.db(dbName);
+  await ensureMongoIndexes(db);
+  return db;
 }

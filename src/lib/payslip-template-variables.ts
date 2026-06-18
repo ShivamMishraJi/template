@@ -55,9 +55,15 @@ function findAttendanceForEmployee(
 
 export function hasAttendanceForEmployee(
   employee: PayrollEmployee,
-  attendance: AttendanceRecord[],
+  attendance: AttendanceRecord | AttendanceRecord[] | null | undefined,
 ): boolean {
-  return findAttendanceForEmployee(employee, attendance) !== undefined;
+  if (!attendance) return false;
+  if (Array.isArray(attendance)) {
+    return findAttendanceForEmployee(employee, attendance) !== undefined;
+  }
+  const agencyId = employee.agencyIdNo.trim().toLowerCase();
+  if (!agencyId) return false;
+  return attendance.agencyNo.trim().toLowerCase() === agencyId;
 }
 
 export function payslipMonthLabel(month: number, year: number): string {
@@ -72,7 +78,7 @@ export function buildPayslipTemplateVariables(
   employee: PayrollEmployee,
   month: number,
   year: number,
-  attendance: AttendanceRecord[] = [],
+  attendance: AttendanceRecord | AttendanceRecord[] = [],
 ): PayslipTemplateVariables {
   const basic = employee.salaryBasic;
   const da = employee.salaryDa;
@@ -100,7 +106,9 @@ export function buildPayslipTemplateVariables(
     securityDeposit;
   const netAmount = totalEarning - totalDeduction;
 
-  const attendanceRow = findAttendanceForEmployee(employee, attendance);
+  const attendanceRow = Array.isArray(attendance)
+    ? findAttendanceForEmployee(employee, attendance)
+    : attendance;
   const totalDays = daysInMonth(month, year);
   const duties = attendanceRow?.total ?? attendanceRow?.daysWorked ?? totalDays;
 

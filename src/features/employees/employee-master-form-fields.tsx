@@ -25,7 +25,9 @@ import {
   employeeNativeSelectClassName,
 } from "@/features/employees/employee-form-styles";
 import {
-  MASTER_DATA_EMPLOYEE_FIELDS,
+  EMPLOYEE_FORM_ID_BANKING_FIELDS,
+  EMPLOYEE_FORM_MASTER_DATA_FIELDS,
+  EMPLOYEE_FORM_TOP_FIELDS,
   labelForMasterField,
   type MasterEmployeeFieldKey,
 } from "@/lib/payroll-employee-master-fields";
@@ -80,7 +82,8 @@ function renderMasterField(
   fieldKey: MasterEmployeeFieldKey,
   rhfControl: Control<FieldValues>,
   label: string,
-  formType: (typeof MASTER_DATA_EMPLOYEE_FIELDS)[number]["formType"],
+  formType: (typeof EMPLOYEE_FORM_MASTER_DATA_FIELDS)[number]["formType"],
+  options?: { readOnly?: boolean; placeholder?: string },
 ) {
   if (fieldKey === "agencyIdNo" && formType === "text") {
     return (
@@ -93,8 +96,13 @@ function renderMasterField(
             <FormLabel>{label}</FormLabel>
             <FormControl>
               <Input
-                placeholder="From Excel AGENCY ID NO — leave blank for auto ID"
+                placeholder={
+                  options?.placeholder ??
+                  "From Excel AGENCY ID NO — leave blank for auto ID"
+                }
                 className={employeeFormFieldClassName}
+                readOnly={options?.readOnly}
+                disabled={options?.readOnly}
                 {...field}
                 value={field.value ?? ""}
               />
@@ -214,7 +222,14 @@ function renderMasterField(
         <FormItem>
           <FormLabel>{label}</FormLabel>
           <FormControl>
-            <Input className={cn("text-sm", employeeFormFieldClassName)} {...field} value={field.value ?? ""} />
+            <Input
+              className={cn("text-sm", employeeFormFieldClassName)}
+              readOnly={options?.readOnly}
+              disabled={options?.readOnly}
+              placeholder={options?.placeholder}
+              {...field}
+              value={field.value ?? ""}
+            />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -226,24 +241,52 @@ function renderMasterField(
 export function EmployeeMasterFormFields({ variant, control }: Props) {
   const rhfControl = control as unknown as Control<FieldValues>;
 
-  const fields =
-    variant === "edit"
-      ? MASTER_DATA_EMPLOYEE_FIELDS.filter((f) => f.key !== "agencyIdNo")
-      : MASTER_DATA_EMPLOYEE_FIELDS;
-
   return (
     <div className="space-y-8">
-      <Card className={employeeFormSectionCardAccentClassName}>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {EMPLOYEE_FORM_TOP_FIELDS.map((def) =>
+          renderMasterField(
+            def.key,
+            rhfControl,
+            def.label,
+            def.formType,
+            def.key === "agencyIdNo"
+              ? {
+                  readOnly: variant === "edit",
+                  placeholder:
+                    variant === "edit" ? undefined : "Leave blank for auto ID",
+                }
+              : undefined,
+          ),
+        )}
+      </div>
+
+      <Card className={employeeFormSectionCardClassName}>
         <CardHeader>
-          <CardTitle className="text-lg">Master Data — Agency Manpower</CardTitle>
+          <CardTitle className="text-lg">Identity &amp; banking</CardTitle>
           <CardDescription>
-            Field names match your KRC Excel sheet exactly ({MASTER_DATA_EMPLOYEE_FIELDS.length}{" "}
-            columns).
+            Government IDs and bank details used on payslips and payroll records.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {fields.map((def) =>
+            {EMPLOYEE_FORM_ID_BANKING_FIELDS.map((def) =>
+              renderMasterField(def.key, rhfControl, def.label, def.formType),
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className={employeeFormSectionCardAccentClassName}>
+        <CardHeader>
+          <CardTitle className="text-lg">Master Data</CardTitle>
+          <CardDescription>
+            Remaining KRC Excel sheet fields ({EMPLOYEE_FORM_MASTER_DATA_FIELDS.length} columns).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {EMPLOYEE_FORM_MASTER_DATA_FIELDS.map((def) =>
               renderMasterField(def.key, rhfControl, def.label, def.formType),
             )}
           </div>
@@ -254,7 +297,7 @@ export function EmployeeMasterFormFields({ variant, control }: Props) {
         <CardHeader>
           <CardTitle className="text-lg">Payroll (system)</CardTitle>
           <CardDescription>
-            Not in the Excel sheet — used for annual salary in the app.
+            Not in the Excel sheet — used for monthly salary and payslip generation.
           </CardDescription>
         </CardHeader>
         <CardContent>

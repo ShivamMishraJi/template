@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  LayoutDashboard,
   Users,
   CalendarClock,
   FileText,
@@ -13,6 +14,7 @@ export type NavItem = {
 };
 
 export const mainNav: NavItem[] = [
+  { title: "Dashboard", href: "/", icon: LayoutDashboard },
   { title: "Employees", href: "/employees", icon: Users },
   { title: "Attendance", href: "/attendance", icon: CalendarClock },
   { title: "Payslips", href: "/payslips", icon: FileText },

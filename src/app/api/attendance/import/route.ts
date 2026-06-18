@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
 import { isMongoConnectionError, MONGO_UNAVAILABLE } from "@/lib/mongo-api-errors";
 import { attendanceImportRowSchema } from "@/lib/attendance-schema";
+import { loadAttendanceDuplicateKeysForMonth } from "@/lib/attendance-db-server";
 import { ATTENDANCE_COLLECTION } from "@/lib/attendance-mongo-constants";
 import crypto from "crypto";
 
@@ -34,9 +35,9 @@ export async function POST(request: Request) {
     const db = await getDb();
     const col = db.collection(ATTENDANCE_COLLECTION);
 
-    const existing = await col.find({ month, year }).toArray();
+    const existing = await loadAttendanceDuplicateKeysForMonth(month, year);
     const existingKeys = new Set(
-      existing.map((d) => `${String(d.agencyNo).trim().toLowerCase()}_${String(d.name).trim().toLowerCase()}`),
+      existing.map((d) => `${d.agencyNo.trim().toLowerCase()}_${d.name.trim().toLowerCase()}`),
     );
 
     const results: Array<{ rowNumber: number; name: string; status: "imported" | "skipped" | "failed"; error?: string }> = [];

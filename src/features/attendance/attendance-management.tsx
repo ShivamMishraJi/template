@@ -11,6 +11,7 @@ import { employeeNativeSelectClassName } from "@/features/employees/employee-for
 import { employeesPanelClassName } from "@/features/employees/employees-panel-styles";
 import type { AttendanceRecord } from "@/lib/attendance-schema";
 import { listAttendance } from "@/lib/attendance-api";
+import { getDefaultPayrollYear, getPayrollYearOptions } from "@/lib/payroll-year-options";
 import { cn } from "@/lib/utils";
 
 const MONTHS = [
@@ -31,36 +32,48 @@ const MONTHS = [
 const attendanceTableClassName =
   "[&_table]:min-w-max [&_thead]:bg-sky-100 [&_th]:whitespace-nowrap [&_th]:border-sky-200/60 [&_th]:px-2 [&_th]:py-2.5 [&_th]:text-sky-900 [&_td]:px-2 [&_td]:py-2 dark:[&_thead]:bg-sky-950 dark:[&_th]:border-sky-800/60 dark:[&_th]:text-sky-100";
 
-function getYearOptions(): number[] {
-  const currentYear = new Date().getFullYear();
-  const years: number[] = [];
-  for (let y = currentYear - 5; y <= currentYear + 1; y++) {
-    years.push(y);
-  }
-  return years;
-}
-
 export function AttendanceManagement() {
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
-  const [year, setYear] = useState(now.getFullYear());
+  const [year, setYear] = useState(getDefaultPayrollYear);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
+  const [search, setSearch] = useState("");
   const [hydrated, setHydrated] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
 
-  const yearOptions = useMemo(() => getYearOptions(), []);
+  const yearOptions = useMemo(() => getPayrollYearOptions(), []);
 
   const refresh = useCallback(async () => {
+    setLoading(true);
     try {
-      const list = await listAttendance(month, year);
-      setRecords(list);
+      const result = await listAttendance(month, year, {
+        page: pageIndex + 1,
+        pageSize,
+        search,
+      });
+      setRecords(result.items);
+      setTotal(result.total);
+      setTotalPages(result.totalPages);
       setLoadError(null);
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : "Failed to load attendance.");
       setRecords([]);
+      setTotal(0);
+      setTotalPages(1);
+    } finally {
+      setLoading(false);
     }
-  }, [month, year]);
+  }, [month, year, pageIndex, pageSize, search]);
+
+  useEffect(() => {
+    setPageIndex(0);
+  }, [month, year, search]);
 
   useEffect(() => {
     setHydrated(false);
@@ -100,8 +113,17 @@ export function AttendanceManagement() {
         data={records}
         enableGlobalFilter
         globalFilterPlaceholder="Search by NAME, AGENCY NO…"
-        pageSize={10}
-        pageSizeOptions={[10, 20, 50]}
+        globalFilterValue={search}
+        onGlobalFilterChange={setSearch}
+        manualPagination
+        pageIndex={pageIndex}
+        onPageIndexChange={setPageIndex}
+        pageCount={totalPages}
+        totalRows={total}
+        controlledPageSize={pageSize}
+        onControlledPageSizeChange={setPageSize}
+        pageSizeOptions={[10, 20, 50, 100]}
+        loading={loading}
         toolbarEnd={
           <Button
             type="button"
@@ -151,7 +173,7 @@ export function AttendanceManagement() {
             title={
               loadError
                 ? "Could not load attendance"
-                : records.length === 0
+                : total === 0
                   ? "No attendance records"
                   : "No records match filters"
             }
@@ -161,7 +183,7 @@ export function AttendanceManagement() {
                 : "Import an attendance Excel sheet to populate this table."
             }
             action={
-              !loadError && records.length === 0 ? (
+              !loadError && total === 0 ? (
                 <Button
                   type="button"
                   variant="default"
@@ -180,7 +202,10 @@ export function AttendanceManagement() {
       <AttendanceExcelImportDialog
         open={importOpen}
         onOpenChange={setImportOpen}
-        onImported={refresh}
+        onImported={() => {
+          setPageIndex(0);
+          void refresh();
+        }}
       />
     </div>
   );

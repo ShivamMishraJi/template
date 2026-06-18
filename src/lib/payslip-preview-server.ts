@@ -1,10 +1,13 @@
-import { NextResponse } from "next/server";
-import { payslipDownloadFilename } from "@/lib/payslips-api";
-import { loadAttendanceForMonthFromDb } from "@/lib/attendance-db-server";
+import { loadAttendanceForEmployeeFromDb } from "@/lib/attendance-db-server";
 import { isMongoConnectionError, MONGO_UNAVAILABLE } from "@/lib/mongo-api-errors";
-import { loadAllPayrollEmployeesFromDb } from "@/lib/payroll-employees-db-server";
-import { buildPayslipTemplateVariables, missingAttendanceMessage, hasAttendanceForEmployee } from "@/lib/payslip-template-variables";
+import { loadPayrollEmployeeByIdFromDb } from "@/lib/payroll-employees-db-server";
+import {
+  buildPayslipTemplateVariables,
+  missingAttendanceMessage,
+} from "@/lib/payslip-template-variables";
 import { compilePayslipPdf } from "@/lib/payslip-typst-server";
+import { payslipDownloadFilename } from "@/lib/payslips-api";
+import { NextResponse } from "next/server";
 
 function payslipContentDisposition(filename: string): string {
   const encoded = encodeURIComponent(filename);
@@ -16,17 +19,13 @@ export async function buildPayslipPreviewResponse(
   month: number,
   year: number,
 ): Promise<NextResponse> {
-  const [employees, attendance] = await Promise.all([
-    loadAllPayrollEmployeesFromDb(),
-    loadAttendanceForMonthFromDb(month, year),
-  ]);
-
-  const employee = employees.find((e) => e.id === employeeId);
+  const employee = await loadPayrollEmployeeByIdFromDb(employeeId);
   if (!employee) {
     return NextResponse.json({ error: "Employee not found." }, { status: 404 });
   }
 
-  if (!hasAttendanceForEmployee(employee, attendance)) {
+  const attendance = await loadAttendanceForEmployeeFromDb(month, year, employee.agencyIdNo);
+  if (!attendance) {
     return NextResponse.json(
       { error: missingAttendanceMessage(month, year) },
       { status: 422 },

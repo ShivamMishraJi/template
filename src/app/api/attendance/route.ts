@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
 import { isMongoConnectionError, MONGO_UNAVAILABLE } from "@/lib/mongo-api-errors";
+import { loadAttendancePageFromDb } from "@/lib/attendance-db-server";
 import { ATTENDANCE_COLLECTION } from "@/lib/attendance-mongo-constants";
+import { parsePaginationSearchParams } from "@/lib/pagination";
 
 export async function GET(request: Request) {
   try {
@@ -13,20 +15,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Valid month and year are required." }, { status: 400 });
     }
 
-    const db = await getDb();
-    const docs = await db
-      .collection(ATTENDANCE_COLLECTION)
-      .find({ month, year })
-      .sort({ createdAt: -1 })
-      .toArray();
+    const { page, pageSize } = parsePaginationSearchParams(searchParams);
+    const search = searchParams.get("search")?.trim() || undefined;
 
-    const records = docs.map((d) => {
-      const o = { ...(d as Record<string, unknown>) };
-      delete o._id;
-      return o;
-    });
-
-    return NextResponse.json(records);
+    const result = await loadAttendancePageFromDb(month, year, { page, pageSize, search });
+    return NextResponse.json(result);
   } catch (error) {
     if (isMongoConnectionError(error)) {
       return NextResponse.json({ error: MONGO_UNAVAILABLE }, { status: 503 });

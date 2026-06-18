@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
 import { isMongoConnectionError, MONGO_UNAVAILABLE } from "@/lib/mongo-api-errors";
 import { payrollEmployeeFormAddSchema } from "@/lib/payroll-employee-schema";
-import { loadAllPayrollEmployeesFromDb } from "@/lib/payroll-employees-db-server";
+import { loadAgencyIdsFromDb } from "@/lib/payroll-employees-db-server";
 import { createEmployeeWithAutoId } from "@/lib/payroll-employees-logic";
 import { PAYROLL_EMPLOYEES_COLLECTION } from "@/lib/payroll-employees-mongo-constants";
 import type {
@@ -44,7 +44,8 @@ export async function POST(request: Request) {
     const skipDuplicates = body.skipDuplicates !== false;
     const db = await getDb();
     const col = db.collection(PAYROLL_EMPLOYEES_COLLECTION);
-    let list = await loadAllPayrollEmployeesFromDb();
+    let agencyIds = await loadAgencyIdsFromDb();
+    const agencyIdSet = new Set(agencyIds.map((id) => id.trim().toLowerCase()));
 
     const results: PayrollEmployeeImportResult["results"] = [];
     const toInsert: PayrollEmployee[] = [];
@@ -69,8 +70,7 @@ export async function POST(request: Request) {
 
       const wantId = parsed.data.agencyIdNo.trim().toLowerCase();
       if (skipDuplicates && wantId) {
-        const exists = list.some((e) => e.agencyIdNo.trim().toLowerCase() === wantId);
-        if (exists) {
+        if (agencyIdSet.has(wantId)) {
           results.push({
             rowNumber,
             fullName,
@@ -81,13 +81,17 @@ export async function POST(request: Request) {
         }
       }
 
-      const createdResult = createEmployeeWithAutoId(list, parsed.data);
+      const createdResult = createEmployeeWithAutoId(
+        agencyIds.map((agencyIdNo) => ({ agencyIdNo })),
+        parsed.data,
+      );
       if ("error" in createdResult) {
         results.push({ rowNumber, fullName, status: "failed", error: createdResult.error });
         continue;
       }
 
-      list = [...list, createdResult.created];
+      agencyIds = [...agencyIds, createdResult.created.agencyIdNo];
+      agencyIdSet.add(createdResult.created.agencyIdNo.trim().toLowerCase());
       toInsert.push(createdResult.created);
       results.push({
         rowNumber,

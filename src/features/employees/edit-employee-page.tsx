@@ -7,17 +7,14 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Form } from "@/components/ui/form";
 import { EmployeeMasterFormFields } from "@/features/employees/employee-master-form-fields";
-import { labelForMasterField } from "@/lib/payroll-employee-master-fields";
+import {
+  employeesPanelBodyClassName,
+  employeesPanelClassName,
+  employeesPanelFooterClassName,
+  employeesPanelHeaderClassName,
+} from "@/features/employees/employees-panel-styles";
 import {
   emptyPayrollEmployeeFormValues,
   payrollEmployeeFormSchema,
@@ -95,7 +92,7 @@ export function EditEmployeePage() {
         <Button variant="ghost" className="w-fit gap-2 px-0 sm:px-4" asChild>
           <Link href="/employees">
             <ArrowLeft className="h-4 w-4" />
-            Back to directory
+            Back to Employee List
           </Link>
         </Button>
         <div className="rounded-md border border-destructive/40 bg-destructive/10 px-6 py-8 text-center">
@@ -109,52 +106,29 @@ export function EditEmployeePage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 pb-12">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <Button variant="ghost" className="w-fit gap-2 px-0 sm:px-4" asChild>
+    <div className={employeesPanelClassName}>
+      <div className={employeesPanelHeaderClassName}>
+        <Button variant="ghost" className="h-9 gap-2 px-2 text-muted-foreground hover:text-foreground" asChild>
           <Link href="/employees">
             <ArrowLeft className="h-4 w-4" />
-            Back to directory
+            Back to employees
           </Link>
         </Button>
       </div>
 
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Edit employee</h1>
-        <p className="mt-1 text-sm text-muted-foreground md:text-base">
-          Update details for{" "}
-          <strong className="font-medium text-foreground">
-            {employee.nameOfEmployee}
-          </strong>
-          . {labelForMasterField("agencyIdNo")} cannot be changed.
-        </p>
-      </div>
-
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <FormField
-            control={form.control}
-            name="agencyIdNo"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{labelForMasterField("agencyIdNo")}</FormLabel>
-                <FormControl>
-                  <Input {...field} readOnly className="bg-muted/50 font-mono" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+          <div className={employeesPanelBodyClassName}>
+            <EmployeeMasterFormFields variant="edit" control={form.control} form={form} />
 
-          <EmployeeMasterFormFields variant="edit" control={form.control} form={form} />
+            {saveError ? (
+              <p className="mt-6 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {saveError}
+              </p>
+            ) : null}
+          </div>
 
-          {saveError && (
-            <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              {saveError}
-            </p>
-          )}
-
-          <div className="flex flex-wrap gap-2 pt-2">
+          <div className={employeesPanelFooterClassName}>
             <Button type="submit" disabled={submitting || !form.formState.isDirty}>
               {submitting ? "Saving…" : "Save changes"}
             </Button>

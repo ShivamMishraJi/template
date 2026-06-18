@@ -19,6 +19,7 @@ import {
   type ParsedAttendanceRow,
 } from "@/lib/attendance-excel-import";
 import { importAttendance } from "@/lib/attendance-api";
+import { getDefaultPayrollYear, getPayrollYearOptions } from "@/lib/payroll-year-options";
 
 const MONTHS = [
   { value: 1, label: "January" },
@@ -35,15 +36,6 @@ const MONTHS = [
   { value: 12, label: "December" },
 ];
 
-function getYearOptions(): number[] {
-  const currentYear = new Date().getFullYear();
-  const years: number[] = [];
-  for (let y = currentYear - 5; y <= currentYear + 1; y++) {
-    years.push(y);
-  }
-  return years;
-}
-
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -54,7 +46,7 @@ export function AttendanceExcelImportDialog({ open, onOpenChange, onImported }: 
   const inputRef = useRef<HTMLInputElement>(null);
   const now = useMemo(() => new Date(), []);
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [selectedYear, setSelectedYear] = useState(getDefaultPayrollYear);
   const [fileName, setFileName] = useState<string | null>(null);
   const [parsedRows, setParsedRows] = useState<ParsedAttendanceRow[]>([]);
   const [sheetName, setSheetName] = useState<string>("");
@@ -62,7 +54,7 @@ export function AttendanceExcelImportDialog({ open, onOpenChange, onImported }: 
   const [importing, setImporting] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
 
-  const yearOptions = useMemo(() => getYearOptions(), []);
+  const yearOptions = useMemo(() => getPayrollYearOptions(), []);
 
   const reset = useCallback(() => {
     setFileName(null);

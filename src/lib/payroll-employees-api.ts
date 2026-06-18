@@ -6,6 +6,7 @@ import {
   type PayrollEmployeeFormValues,
   type PayrollEmployeeListItem,
 } from "@/lib/payroll-employee-schema";
+import type { PaginatedResult } from "@/lib/pagination";
 
 const BASE = "/api/payroll-employees";
 
@@ -16,6 +17,20 @@ function errorMessageFromResponse(data: unknown, fallback: string): string {
   }
   return fallback;
 }
+
+export type ListPayrollEmployeesOptions = {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  siteName?: string;
+  employmentStatus?: "active" | "inactive";
+  activeOnly?: boolean;
+  includeSites?: boolean;
+};
+
+export type PayrollEmployeesListResponse = PaginatedResult<PayrollEmployeeListItem> & {
+  sites?: string[];
+};
 
 export async function getPayrollEmployee(id: string): Promise<PayrollEmployee | null> {
   const res = await fetch(`${BASE}/${encodeURIComponent(id)}`, { cache: "no-store" });
@@ -28,16 +43,33 @@ export async function getPayrollEmployee(id: string): Promise<PayrollEmployee | 
   return list[0] ?? null;
 }
 
-export async function listPayrollEmployees(): Promise<PayrollEmployeeListItem[]> {
-  const res = await fetch(BASE, { cache: "no-store" });
+export async function listPayrollEmployees(
+  options: ListPayrollEmployeesOptions = {},
+): Promise<PayrollEmployeesListResponse> {
+  const params = new URLSearchParams({
+    page: String(options.page ?? 1),
+    pageSize: String(options.pageSize ?? 20),
+  });
+  if (options.search?.trim()) params.set("search", options.search.trim());
+  if (options.siteName?.trim()) params.set("siteName", options.siteName.trim());
+  if (options.employmentStatus) params.set("employmentStatus", options.employmentStatus);
+  if (options.activeOnly) params.set("activeOnly", "true");
+  if (options.includeSites) params.set("includeSites", "true");
+
+  const res = await fetch(`${BASE}?${params.toString()}`, { cache: "no-store" });
   const data: unknown = await res.json().catch(() => null);
   if (!res.ok) {
     throw new Error(errorMessageFromResponse(data, "Failed to load employees."));
   }
-  if (!Array.isArray(data)) {
-    return [];
+  if (!data || typeof data !== "object" || !("items" in data)) {
+    return { items: [], total: 0, page: 1, pageSize: options.pageSize ?? 20, totalPages: 1 };
   }
-  return parsePayrollEmployeeListItems(data);
+
+  const body = data as PayrollEmployeesListResponse;
+  return {
+    ...body,
+    items: parsePayrollEmployeeListItems(body.items),
+  };
 }
 
 export async function createPayrollEmployee(

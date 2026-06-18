@@ -133,6 +133,32 @@ export const MASTER_DATA_TEMPLATE_HEADERS: string[] = MASTER_DATA_EMPLOYEE_FIELD
   (f) => f.label,
 );
 
+/** Shown at the top of add/edit employee forms. */
+export const EMPLOYEE_FORM_TOP_FIELDS: MasterEmployeeFieldDef[] = [
+  { key: "nameOfEmployee", label: "NAME OF EMPLOYEE", formType: "text" },
+  { key: "agencyIdNo", label: "AGENCY ID NO", formType: "text" },
+];
+
+/** Identity and banking fields grouped below the top row on add/edit forms. */
+export const EMPLOYEE_FORM_ID_BANKING_FIELDS: MasterEmployeeFieldDef[] = [
+  { key: "aadharNumber", label: "AADHAR NUMBER", formType: "text" },
+  { key: "panNumber", label: "PAN NUMBER", formType: "text" },
+  { key: "uanPfNo", label: "UAN / PF NO.", formType: "text" },
+  { key: "esicNo", label: "ESIC NO.", formType: "text" },
+  { key: "bankName", label: "BANK NAME", formType: "text" },
+  { key: "bankAccountNumber", label: "BANK A/C NUMBER", formType: "text" },
+  { key: "bankIfscNumber", label: "BANK IFSC NUMBER", formType: "text" },
+];
+
+const EMPLOYEE_FORM_GROUPED_FIELD_KEYS = new Set<MasterEmployeeFieldKey>([
+  ...EMPLOYEE_FORM_TOP_FIELDS.map((f) => f.key),
+  ...EMPLOYEE_FORM_ID_BANKING_FIELDS.map((f) => f.key),
+]);
+
+export const EMPLOYEE_FORM_MASTER_DATA_FIELDS = MASTER_DATA_EMPLOYEE_FIELDS.filter(
+  (f) => !EMPLOYEE_FORM_GROUPED_FIELD_KEYS.has(f.key),
+);
+
 export function labelForMasterField(key: MasterEmployeeFieldKey): string {
   const f = MASTER_DATA_EMPLOYEE_FIELDS.find((c) => c.key === key);
   return f?.label ?? key;

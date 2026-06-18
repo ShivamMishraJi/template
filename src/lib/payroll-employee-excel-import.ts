@@ -305,6 +305,6 @@ export function downloadImportTemplate(): void {
   ws["!cols"] = MASTER_DATA_EMPLOYEE_FIELDS.map((f) => ({
     wch: Math.min(52, Math.max(10, Math.ceil((f.tableMinWidth ?? 100) / 7))),
   }));
-  XLSX.utils.book_append_sheet(wb, ws, "Master Data - Agency Manpower");
+  XLSX.utils.book_append_sheet(wb, ws, "Master Data");
   XLSX.writeFile(wb, "employee-master-data-template.xlsx");
 }

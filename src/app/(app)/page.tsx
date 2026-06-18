@@ -1,18 +1,19 @@
 import { Suspense } from "react";
 import { DashboardHome } from "@/components/pages/dashboard-home";
-import { CardGridSkeleton, PageHeaderSkeleton } from "@/components/loading-skeletons";
+import { CardGridSkeleton } from "@/components/loading-skeletons";
 
 export default function DashboardPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="space-y-8">
-          <PageHeaderSkeleton />
-          <CardGridSkeleton />
-        </div>
-      }
-    >
-      <DashboardHome />
-    </Suspense>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <Suspense
+        fallback={
+          <div className="p-4">
+            <CardGridSkeleton />
+          </div>
+        }
+      >
+        <DashboardHome />
+      </Suspense>
+    </div>
   );
 }

@@ -18,7 +18,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -51,6 +51,16 @@ type DataTableProps<TData, TValue> = {
   pageSize?: number;
   pageSizeOptions?: number[];
   showPaginationInfo?: boolean;
+  manualPagination?: boolean;
+  pageCount?: number;
+  pageIndex?: number;
+  onPageIndexChange?: (pageIndex: number) => void;
+  controlledPageSize?: number;
+  onControlledPageSizeChange?: (pageSize: number) => void;
+  totalRows?: number;
+  globalFilterValue?: string;
+  onGlobalFilterChange?: (value: string) => void;
+  loading?: boolean;
 };
 
 export function DataTable<TData, TValue>({
@@ -72,13 +82,25 @@ export function DataTable<TData, TValue>({
   pageSize = 8,
   pageSizeOptions,
   showPaginationInfo = true,
+  manualPagination = false,
+  pageCount,
+  pageIndex = 0,
+  onPageIndexChange,
+  controlledPageSize,
+  onControlledPageSizeChange,
+  totalRows,
+  globalFilterValue,
+  onGlobalFilterChange,
+  loading = false,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
     initialColumnVisibility ?? {},
   );
-  const [globalFilter, setGlobalFilter] = useState("");
+  const [internalGlobalFilter, setInternalGlobalFilter] = useState("");
+  const resolvedPageSize = controlledPageSize ?? pageSize;
+  const globalFilter = globalFilterValue ?? internalGlobalFilter;
 
   // TanStack Table returns unstable function references; React Compiler skips memoization here.
   // eslint-disable-next-line react-hooks/incompatible-library -- useReactTable is the supported API
@@ -89,36 +111,67 @@ export function DataTable<TData, TValue>({
       sorting,
       columnFilters,
       columnVisibility,
+      pagination: {
+        pageIndex,
+        pageSize: resolvedPageSize,
+      },
       ...(enableGlobalFilter ? { globalFilter } : {}),
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
+    manualPagination,
+    pageCount: manualPagination ? pageCount : undefined,
+    onPaginationChange: manualPagination
+      ? (updater) => {
+          const next =
+            typeof updater === "function"
+              ? updater({ pageIndex, pageSize: resolvedPageSize })
+              : updater;
+          if (next.pageIndex !== pageIndex) {
+            onPageIndexChange?.(next.pageIndex);
+          }
+          if (next.pageSize !== resolvedPageSize) {
+            onControlledPageSizeChange?.(next.pageSize);
+            onPageIndexChange?.(0);
+          }
+        }
+      : undefined,
     ...(enableGlobalFilter
       ? {
-          onGlobalFilterChange: setGlobalFilter,
+          onGlobalFilterChange: (value: string) => {
+            if (onGlobalFilterChange) {
+              onGlobalFilterChange(value);
+            } else {
+              setInternalGlobalFilter(value);
+            }
+          },
           globalFilterFn:
-            globalFilterFn ??
-            ((row, _columnId, filterValue: unknown) => {
-              const q = String(filterValue ?? "")
-                .toLowerCase()
-                .trim();
-              if (!q) return true;
-              const hay = Object.values(row.original as Record<string, unknown>)
-                .filter((v) => typeof v === "string" || typeof v === "number")
-                .join(" ")
-                .toLowerCase();
-              return hay.includes(q);
-            }),
+            manualPagination
+              ? () => true
+              : globalFilterFn ??
+                ((row, _columnId, filterValue: unknown) => {
+                  const q = String(filterValue ?? "")
+                    .toLowerCase()
+                    .trim();
+                  if (!q) return true;
+                  const hay = Object.values(row.original as Record<string, unknown>)
+                    .filter((v) => typeof v === "string" || typeof v === "number")
+                    .join(" ")
+                    .toLowerCase();
+                  return hay.includes(q);
+                }),
         }
       : {}),
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
+    ...(manualPagination ? {} : { getFilteredRowModel: getFilteredRowModel() }),
     getPaginationRowModel: getPaginationRowModel(),
-    initialState: {
-      pagination: { pageSize },
-    },
+    initialState: manualPagination
+      ? undefined
+      : {
+          pagination: { pageSize },
+        },
   });
 
   return (
@@ -182,7 +235,16 @@ export function DataTable<TData, TValue>({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-32 text-center">
+                  <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading…
+                  </span>
+                </TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
@@ -237,7 +299,11 @@ export function DataTable<TData, TValue>({
         )}
       >
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-          <span>{table.getFilteredRowModel().rows.length} row(s)</span>
+          <span>
+            {manualPagination && totalRows !== undefined
+              ? `${totalRows} row(s)`
+              : `${table.getFilteredRowModel().rows.length} row(s)`}
+          </span>
           {showPaginationInfo && (
             <>
               <span aria-hidden>·</span>
@@ -252,10 +318,16 @@ export function DataTable<TData, TValue>({
               <span className="sr-only sm:not-sr-only sm:inline">Rows per page</span>
               <select
                 className="h-8 rounded-md border border-input bg-background px-2 text-sm shadow-sm"
-                value={table.getState().pagination.pageSize}
+                value={resolvedPageSize}
                 onChange={(e) => {
-                  table.setPageSize(Number(e.target.value));
-                  table.setPageIndex(0);
+                  const nextSize = Number(e.target.value);
+                  if (manualPagination) {
+                    onControlledPageSizeChange?.(nextSize);
+                    onPageIndexChange?.(0);
+                  } else {
+                    table.setPageSize(nextSize);
+                    table.setPageIndex(0);
+                  }
                 }}
               >
                 {pageSizeOptions.map((n) => (

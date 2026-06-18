@@ -1,4 +1,5 @@
 import { parseAttendanceRecords, type AttendanceRecord } from "@/lib/attendance-schema";
+import type { PaginatedResult } from "@/lib/pagination";
 
 const BASE = "/api/attendance";
 
@@ -10,16 +11,72 @@ function errorMessageFromResponse(data: unknown, fallback: string): string {
   return fallback;
 }
 
-export async function listAttendance(month: number, year: number): Promise<AttendanceRecord[]> {
-  const res = await fetch(`${BASE}?month=${month}&year=${year}`, { cache: "no-store" });
+export type ListAttendanceOptions = {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+};
+
+export async function listAttendance(
+  month: number,
+  year: number,
+  options: ListAttendanceOptions = {},
+): Promise<PaginatedResult<AttendanceRecord>> {
+  const params = new URLSearchParams({
+    month: String(month),
+    year: String(year),
+    page: String(options.page ?? 1),
+    pageSize: String(options.pageSize ?? 20),
+  });
+  if (options.search?.trim()) {
+    params.set("search", options.search.trim());
+  }
+
+  const res = await fetch(`${BASE}?${params.toString()}`, { cache: "no-store" });
   const data: unknown = await res.json().catch(() => null);
   if (!res.ok) {
     throw new Error(errorMessageFromResponse(data, "Failed to load attendance."));
   }
-  if (!Array.isArray(data)) {
+  if (!data || typeof data !== "object" || !("items" in data)) {
+    return { items: [], total: 0, page: 1, pageSize: options.pageSize ?? 20, totalPages: 1 };
+  }
+
+  const body = data as PaginatedResult<unknown>;
+  return {
+    ...body,
+    items: parseAttendanceRecords(body.items),
+  };
+}
+
+export type AttendancePeriod = {
+  month: number;
+  year: number;
+};
+
+export async function listAttendancePeriodsForEmployee(
+  employeeId: string,
+): Promise<AttendancePeriod[]> {
+  const res = await fetch(
+    `${BASE}/periods?employeeId=${encodeURIComponent(employeeId)}`,
+    { cache: "no-store" },
+  );
+  const data: unknown = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(errorMessageFromResponse(data, "Failed to load attendance periods."));
+  }
+  if (!data || typeof data !== "object" || !("periods" in data)) {
     return [];
   }
-  return parseAttendanceRecords(data);
+  const periods = (data as { periods: unknown }).periods;
+  if (!Array.isArray(periods)) return [];
+
+  return periods.filter(
+    (period): period is AttendancePeriod =>
+      !!period &&
+      typeof period === "object" &&
+      typeof (period as AttendancePeriod).month === "number" &&
+      typeof (period as AttendancePeriod).year === "number",
+  );
 }
 
 export type AttendanceImportSummary = {
@@ -65,4 +122,3 @@ export async function deleteAttendance(
   }
   return { ok: true };
 }
-

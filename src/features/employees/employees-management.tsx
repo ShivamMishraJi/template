@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Table } from "@tanstack/react-table";
 import Link from "next/link";
 import { Plus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,6 @@ import { employeesPanelClassName } from "@/features/employees/employees-panel-st
 import { createPayrollEmployeeColumns } from "@/features/employees/payroll-employee-table-columns";
 import type { PayrollEmployeeListItem } from "@/lib/payroll-employee-schema";
 import { listPayrollEmployees } from "@/lib/payroll-employees-api";
-import { uniqueSitesFromEmployees } from "@/lib/payroll-employees-logic";
 import { cn } from "@/lib/utils";
 import type { VisibilityState } from "@/components/data-table/data-table";
 
@@ -50,72 +48,51 @@ const DEFAULT_HIDDEN_COLUMNS: VisibilityState = {
 const employeesTableClassName =
   "[&_table]:min-w-max [&_thead]:bg-sky-100 [&_th]:whitespace-nowrap [&_th]:border-sky-200/60 [&_th]:px-2 [&_th]:py-2.5 [&_td]:px-2 [&_td]:py-2 dark:[&_thead]:bg-sky-950 dark:[&_th]:border-sky-800/60";
 
-function BranchFilter({
-  table,
-  branches,
-}: {
-  table: Table<PayrollEmployeeListItem>;
-  branches: string[];
-}) {
-  const column = table.getColumn("siteName");
-  if (!column) return null;
-  return (
-    <label className="flex items-center gap-2 text-sm text-muted-foreground">
-      <span className="whitespace-nowrap">SITE NAME</span>
-      <select
-        className="h-9 max-w-[160px] rounded-md border border-input bg-background px-2 text-sm text-foreground shadow-sm"
-        value={(column.getFilterValue() as string) ?? "all"}
-        onChange={(e) =>
-          column.setFilterValue(e.target.value === "all" ? undefined : e.target.value)
-        }
-      >
-        <option value="all">All sites</option>
-        {branches.map((b) => (
-          <option key={b} value={b}>
-            {b}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function StatusFilter({ table }: { table: Table<PayrollEmployeeListItem> }) {
-  const column = table.getColumn("employmentStatus");
-  if (!column) return null;
-  return (
-    <label className="flex items-center gap-2 text-sm text-muted-foreground">
-      <span className="whitespace-nowrap">Status</span>
-      <select
-        className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground shadow-sm"
-        value={(column.getFilterValue() as string) ?? "all"}
-        onChange={(e) =>
-          column.setFilterValue(e.target.value === "all" ? undefined : e.target.value)
-        }
-      >
-        <option value="all">All</option>
-        <option value="active">Active</option>
-        <option value="inactive">Inactive</option>
-      </select>
-    </label>
-  );
-}
-
 export function EmployeesManagement() {
   const [employees, setEmployees] = useState<PayrollEmployeeListItem[]>([]);
+  const [sites, setSites] = useState<string[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
+  const [search, setSearch] = useState("");
+  const [siteName, setSiteName] = useState("");
+  const [employmentStatus, setEmploymentStatus] = useState<"" | "active" | "inactive">("");
   const [hydrated, setHydrated] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
+    setLoading(true);
     try {
-      const list = await listPayrollEmployees();
-      setEmployees(list);
+      const result = await listPayrollEmployees({
+        page: pageIndex + 1,
+        pageSize,
+        search,
+        siteName: siteName || undefined,
+        employmentStatus: employmentStatus || undefined,
+        includeSites: true,
+      });
+      setEmployees(result.items);
+      setTotal(result.total);
+      setTotalPages(result.totalPages);
+      if (result.sites) {
+        setSites(result.sites);
+      }
       setLoadError(null);
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : "Failed to load employees.");
       setEmployees([]);
+      setTotal(0);
+      setTotalPages(1);
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }, [pageIndex, pageSize, search, siteName, employmentStatus]);
+
+  useEffect(() => {
+    setPageIndex(0);
+  }, [search, siteName, employmentStatus]);
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -123,16 +100,6 @@ export function EmployeesManagement() {
     }, 0);
     return () => window.clearTimeout(id);
   }, [refresh]);
-
-  const branches = useMemo(() => uniqueSitesFromEmployees(employees), [employees]);
-
-  const tableData = useMemo(
-    () =>
-      employees
-        .filter((e) => e.deletedAt === null)
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
-    [employees],
-  );
 
   const columns = useMemo(() => createPayrollEmployeeColumns(), []);
 
@@ -160,12 +127,21 @@ export function EmployeesManagement() {
         embedded
         className="min-h-0 flex-1"
         columns={columns}
-        data={tableData}
+        data={employees}
         initialColumnVisibility={DEFAULT_HIDDEN_COLUMNS}
         enableGlobalFilter
         globalFilterPlaceholder="Search employees…"
-        pageSize={10}
-        pageSizeOptions={[10, 20, 50]}
+        globalFilterValue={search}
+        onGlobalFilterChange={setSearch}
+        manualPagination
+        pageIndex={pageIndex}
+        onPageIndexChange={setPageIndex}
+        pageCount={totalPages}
+        totalRows={total}
+        controlledPageSize={pageSize}
+        onControlledPageSizeChange={setPageSize}
+        pageSizeOptions={[10, 20, 50, 100]}
+        loading={loading}
         toolbarEnd={
           <Button className="gap-2" asChild>
             <Link href="/employees/add">
@@ -174,10 +150,40 @@ export function EmployeesManagement() {
             </Link>
           </Button>
         }
-        toolbarExtras={(table) => (
+        toolbarExtras={() => (
           <>
-            <BranchFilter table={table} branches={branches} />
-            <StatusFilter table={table} />
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="whitespace-nowrap">SITE NAME</span>
+              <select
+                className="h-9 max-w-[160px] rounded-md border border-input bg-background px-2 text-sm text-foreground shadow-sm"
+                value={siteName || "all"}
+                onChange={(e) => setSiteName(e.target.value === "all" ? "" : e.target.value)}
+              >
+                <option value="all">All sites</option>
+                {sites.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="whitespace-nowrap">Status</span>
+              <select
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground shadow-sm"
+                value={employmentStatus || "all"}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setEmploymentStatus(
+                    value === "active" || value === "inactive" ? value : "",
+                  );
+                }}
+              >
+                <option value="all">All</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </label>
           </>
         )}
         emptyState={
@@ -186,19 +192,19 @@ export function EmployeesManagement() {
             title={
               loadError
                 ? "Could not load employees"
-                : employees.length === 0
+                : total === 0
                   ? "No employees yet"
                   : "No employees match filters"
             }
             description={
               loadError
                 ? "Fix MongoDB connection (.env MONGODB_URI), then reload the page."
-                : employees.length === 0
+                : total === 0
                   ? "Add employees one at a time or import from Excel on the add employee page."
                   : "Clear search and filters to see more results."
             }
             action={
-              !loadError && employees.length === 0 ? (
+              !loadError && total === 0 ? (
                 <Button className="gap-2" asChild>
                   <Link href="/employees/add">
                     <Plus className="h-4 w-4" />

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
 import { isMongoConnectionError, MONGO_UNAVAILABLE } from "@/lib/mongo-api-errors";
 import { payrollEmployeeFormSchema } from "@/lib/payroll-employee-schema";
-import { loadAllPayrollEmployeesFromDb } from "@/lib/payroll-employees-db-server";
+import { loadPayrollEmployeeByIdFromDb } from "@/lib/payroll-employees-db-server";
 import {
   restoreEmployeeInList,
   softDeleteEmployeeInList,
@@ -15,8 +15,7 @@ type RouteCtx = { params: Promise<{ id: string }> };
 export async function GET(_request: Request, ctx: RouteCtx) {
   try {
     const { id } = await ctx.params;
-    const list = await loadAllPayrollEmployeesFromDb();
-    const employee = list.find((e) => e.id === id);
+    const employee = await loadPayrollEmployeeByIdFromDb(id);
     if (!employee) {
       return NextResponse.json({ error: "Employee not found." }, { status: 404 });
     }
@@ -38,13 +37,11 @@ export async function PATCH(request: Request, ctx: RouteCtx) {
     if (json !== null && typeof json === "object" && "action" in json) {
       const action = (json as { action?: unknown }).action;
       if (action === "restore") {
-        const list = await loadAllPayrollEmployeesFromDb();
-        const exists = list.some((e) => e.id === id);
-        if (!exists) {
+        const current = await loadPayrollEmployeeByIdFromDb(id);
+        if (!current) {
           return NextResponse.json({ error: "Employee not found." }, { status: 404 });
         }
-        const next = restoreEmployeeInList(list, id);
-        const updated = next.find((e) => e.id === id);
+        const updated = restoreEmployeeInList([current], id).find((e) => e.id === id);
         if (!updated) {
           return NextResponse.json({ error: "Employee not found." }, { status: 404 });
         }
@@ -62,8 +59,12 @@ export async function PATCH(request: Request, ctx: RouteCtx) {
       );
     }
 
-    const list = await loadAllPayrollEmployeesFromDb();
-    const result = updateEmployeeInList(list, id, parsed.data);
+    const current = await loadPayrollEmployeeByIdFromDb(id);
+    if (!current) {
+      return NextResponse.json({ error: "Employee not found." }, { status: 404 });
+    }
+
+    const result = updateEmployeeInList([current], id, parsed.data);
     if ("error" in result) {
       const status = result.error === "Employee not found." ? 404 : 409;
       return NextResponse.json({ error: result.error }, { status });
@@ -87,13 +88,11 @@ export async function PATCH(request: Request, ctx: RouteCtx) {
 export async function DELETE(_request: Request, ctx: RouteCtx) {
   try {
     const { id } = await ctx.params;
-    const list = await loadAllPayrollEmployeesFromDb();
-    const exists = list.some((e) => e.id === id);
-    if (!exists) {
+    const current = await loadPayrollEmployeeByIdFromDb(id);
+    if (!current) {
       return NextResponse.json({ error: "Employee not found." }, { status: 404 });
     }
-    const next = softDeleteEmployeeInList(list, id);
-    const updated = next.find((e) => e.id === id);
+    const updated = softDeleteEmployeeInList([current], id).find((e) => e.id === id);
     if (!updated) {
       return NextResponse.json({ error: "Employee not found." }, { status: 404 });
     }
