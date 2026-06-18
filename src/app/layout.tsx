@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { defaultBrandLogoIcons } from "@/lib/brand-assets";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,11 +18,12 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: {
-    default: "SecurePayroll — Payroll Management",
-    template: "%s — SecurePayroll",
+    default: "Force Security Services HRMS",
+    template: "%s — Force Security Services",
   },
   description:
-    "Enterprise HRMS dashboard for attendance, employees, and payslips.",
+    "Enterprise Security Services dashboard for attendance, employees, and payslips.",
+  icons: defaultBrandLogoIcons,
 };
 
 export default function RootLayout({

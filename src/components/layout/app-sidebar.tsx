@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Shield } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWorkspaceSettings } from "@/features/settings/workspace-settings-provider";
@@ -18,14 +18,12 @@ function SidebarBrand({ onNavigate }: { onNavigate?: () => void }) {
       onClick={onNavigate}
       className="flex h-14 items-center gap-2 border-b border-sidebar-border px-4 transition-colors hover:bg-sidebar-accent"
     >
-      <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/90 text-primary-foreground">
-        <Shield className="h-5 w-5" aria-hidden />
-      </div>
+      <BrandLogo />
       <div className="min-w-0">
         <p className="truncate text-sm font-semibold tracking-tight">
           {loading ? defaultWorkspaceSettingsValues.companyName : companyName}
         </p>
-        <p className="truncate text-xs text-sidebar-muted">Enterprise HRMS</p>
+        <p className="truncate text-xs text-sidebar-muted"> HRMS</p>
       </div>
     </Link>
   );

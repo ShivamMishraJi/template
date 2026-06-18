@@ -26,7 +26,7 @@ export const workspaceSettingsUpdateSchema = z
 export type WorkspaceSettingsUpdate = z.infer<typeof workspaceSettingsUpdateSchema>;
 
 export const defaultWorkspaceSettingsValues = {
-  companyName: "SecurePayroll",
+  companyName: "Force Security Services",
   appearance: "system" as const,
 };
 
